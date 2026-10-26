@@ -1,0 +1,19 @@
+# Секрети: лише на сервері, ніколи в git
+.env
+*.env
+!.env.example
+
+# Згенеровані файли: їх створює check.py / import.py
+transactions-*.beancount
+/report.html
+*.beancount.lock
+.manual-*.tmp
+
+# Службові
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# УВАГА: data/ у цьому репозиторії комітимо свідомо — там лише ШТУЧНІ виписки
+# з завдання. Для справжніх даних цей репозиторій не використовувати.

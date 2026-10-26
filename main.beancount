@@ -1,0 +1,60 @@
+; Спільний облік Олі й Марка.
+; Особа — завжди останній рівень рахунку: Expenses:Продукти:Марко, Income:Зарплата:Оля.
+; Тому Fava показує категорію разом, а запити легко ділять по людях (leaf(account)).
+; Теги: #fixed — фіксована витрата, #shared — спільна (оренда, супермаркети), ділимо навпіл.
+
+option "title" "Фінанси Олі й Марка"
+option "operating_currency" "PLN"
+
+2026-01-01 custom "fava-option" "language" "uk"
+
+2026-01-01 open Equity:Початковий-Залишок          PLN
+
+2026-01-01 open Assets:Банк:Оля                    PLN
+2026-01-01 open Assets:Готівка:Оля                 PLN
+2026-01-01 open Income:Зарплата:Оля                PLN
+2026-01-01 open Income:Інше:Оля                    PLN
+2026-01-01 open Expenses:Житло:Оля                 PLN
+2026-01-01 open Expenses:Продукти:Оля              PLN
+2026-01-01 open Expenses:Кафе:Оля                  PLN
+2026-01-01 open Expenses:Доставка-Їжі:Оля          PLN
+2026-01-01 open Expenses:Транспорт:Оля             PLN
+2026-01-01 open Expenses:Підписки:Оля              PLN
+2026-01-01 open Expenses:Звязок:Оля                PLN
+2026-01-01 open Expenses:Комунальні:Оля            PLN
+2026-01-01 open Expenses:Спорт:Оля                 PLN
+2026-01-01 open Expenses:Догляд:Оля                PLN
+2026-01-01 open Expenses:Розваги:Оля               PLN
+2026-01-01 open Expenses:Покупки:Оля               PLN
+2026-01-01 open Expenses:Комісії-Банку:Оля         PLN
+2026-01-01 open Expenses:Без-Категорії:Оля         PLN
+
+2026-01-01 open Assets:Банк:Марко                  PLN
+2026-01-01 open Assets:Готівка:Марко               PLN
+2026-01-01 open Income:Зарплата:Марко              PLN
+2026-01-01 open Income:Інше:Марко                  PLN
+2026-01-01 open Expenses:Житло:Марко               PLN
+2026-01-01 open Expenses:Продукти:Марко            PLN
+2026-01-01 open Expenses:Кафе:Марко                PLN
+2026-01-01 open Expenses:Доставка-Їжі:Марко        PLN
+2026-01-01 open Expenses:Транспорт:Марко           PLN
+2026-01-01 open Expenses:Підписки:Марко            PLN
+2026-01-01 open Expenses:Звязок:Марко              PLN
+2026-01-01 open Expenses:Комунальні:Марко          PLN
+2026-01-01 open Expenses:Спорт:Марко               PLN
+2026-01-01 open Expenses:Догляд:Марко              PLN
+2026-01-01 open Expenses:Розваги:Марко             PLN
+2026-01-01 open Expenses:Покупки:Марко             PLN
+2026-01-01 open Expenses:Комісії-Банку:Марко       PLN
+2026-01-01 open Expenses:Без-Категорії:Марко       PLN
+
+include "transactions-olya.beancount"
+include "transactions-marko.beancount"
+include "manual.beancount"
+
+; Збережені запити: у Fava — сторінка «Запит». who — чиї гроші.
+2026-01-01 query "1 Витрати за категоріями" "SELECT year, month, leaf(account) AS who, parent(account) AS category, sum(number) AS spent WHERE account ~ '^Expenses:' GROUP BY year, month, who, category ORDER BY year, month, who, spent DESC"
+2026-01-01 query "2 Норма заощаджень" "SELECT year, month, leaf(account) AS who, -sum(number * decimal(root(account, 1) = 'Income')) AS income, sum(number * decimal(root(account, 1) = 'Expenses')) AS expenses, -sum(number) AS saved, round(safediv(sum(number), sum(number * decimal(root(account, 1) = 'Income'))) * 100, 1) AS rate_pct, max(date) AS data_through WHERE root(account, 1) IN ('Income', 'Expenses') GROUP BY year, month, who ORDER BY year, month, who"
+2026-01-01 query "3 Фіксовані і змінні" "SELECT year, month, leaf(account) AS who, 'fixed' IN tags AS fixed, sum(number) AS spent WHERE account ~ '^Expenses:' GROUP BY year, month, who, fixed ORDER BY year, month, who, fixed DESC"
+2026-01-01 query "4 Без категорії" "SELECT date, leaf(account) AS who, narration, number WHERE account ~ '^Expenses:Без-Категорії:' ORDER BY date"
+2026-01-01 query "5 Спільні витрати" "SELECT year, month, leaf(account) AS who, sum(number) AS paid WHERE account ~ '^Expenses:' AND 'shared' IN tags GROUP BY year, month, who ORDER BY year, month, who"

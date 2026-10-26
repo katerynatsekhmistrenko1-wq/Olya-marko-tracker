@@ -1,0 +1,11 @@
+[project]
+name = "olya-marko-tracker"
+version = "0.2.0"
+description = "Спільний фінансовий трекер Олі й Марка на Beancount 3 + Fava з входом за паролем (WIT 5.0, ДЗ 3, частина 2)"
+requires-python = ">=3.12"
+dependencies = [
+    "beancount==3.2.3",
+    "beanquery==0.2.0",
+    "fava==1.30.16",
+    "flask>=3.1,<4",
+]

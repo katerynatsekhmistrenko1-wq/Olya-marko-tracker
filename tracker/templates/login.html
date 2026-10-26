@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Вхід{% endblock %}
+{% block content %}
+<style>
+  .login { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; }
+  .login h1 { font-size: 26px; margin: 0 0 4px; }
+</style>
+<main class="login">
+  <h1>Фінанси Олі й Марка</h1>
+  <p class="sub">Спільний облік. Увійдіть, щоб побачити звіт.</p>
+  {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('login') }}" class="card">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="login" style="margin-top:0">Логін</label>
+    <input id="login" name="login" value="{{ login or '' }}" autocomplete="username"
+           autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label for="password">Пароль</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <div style="height:18px"></div>
+    <button class="btn" type="submit">Увійти</button>
+  </form>
+</main>
+{% endblock %}

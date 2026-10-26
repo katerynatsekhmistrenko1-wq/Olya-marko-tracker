@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}{% if month %}{{ MONTHS[month.month] }} {{ month.year }} · {{ who }}{% else %}Звіт{% endif %}{% endblock %}
+{% block content %}
+<style>
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px; }
+  .seg a { text-align: center; padding: 9px 0; border-radius: 999px; text-decoration: none;
+    color: var(--muted); font-weight: 600; font-size: 15px; }
+  .seg a[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
+  .months { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0 4px; scrollbar-width: none; }
+  .months::-webkit-scrollbar { display: none; }
+  .months a { flex: none; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line);
+    text-decoration: none; color: var(--ink); font-size: 14px; white-space: nowrap; }
+  .months a[aria-current="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 14px 2px 0; }
+  .heading h2 { font-size: 22px; margin: 0; font-weight: 650; }
+  .badge { font-size: 12px; color: var(--warn); border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+  .rows { list-style: none; margin: 14px 0 0; padding: 0; }
+  .rows li { margin: 0 0 12px; }
+  .rows .line { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+  .rows .line span:last-child { color: var(--muted); white-space: nowrap; }
+  .track { height: 8px; border-radius: 4px; background: var(--accent-soft); margin-top: 5px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 4px; background: var(--bar); }
+  .fill.soft { background: var(--bar-2); }
+  dl.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 14px 0 0; font-size: 15px; }
+  dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; text-align: right; }
+  dl.kv .sum { font-weight: 650; border-top: 1px solid var(--line); padding-top: 6px; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .split div { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .split b { display: block; font-size: 18px; }
+  .split span { color: var(--muted); font-size: 13px; }
+  .debt { font-size: 22px; font-weight: 650; margin: 2px 0 0; line-height: 1.25; }
+  .cats details > summary { list-style: none; cursor: pointer; padding: 6px 22px 6px 0; margin: -6px 0; position: relative; border-radius: 8px; }
+  .cats details > summary::-webkit-details-marker { display: none; }
+  .cats details > summary::after { content: ""; position: absolute; right: 4px; top: 12px; width: 7px; height: 7px;
+    border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
+  .cats details[open] > summary::after { transform: rotate(-135deg); top: 15px; }
+  .cats .count { color: var(--muted); font-size: 13px; }
+  .items { list-style: none; margin: 10px 0 4px; padding: 2px 0 0 10px; border-left: 2px solid var(--accent-soft); }
+  .items li { display: grid; grid-template-columns: 42px 1fr auto; gap: 8px; align-items: baseline; padding: 6px 0; margin: 0;
+    font-size: 14px; border-top: 1px solid var(--line); }
+  .items li:first-child { border-top: 0; }
+  .items .d { color: var(--muted); font-size: 13px; }
+  .items .n { overflow-wrap: anywhere; }
+  .items .a { white-space: nowrap; }
+  .items .tags { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: 1px; }
+  .items .tags i { font-style: normal; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; }
+  .fab { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom));
+    width: min(528px, calc(100% - 32px)); box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+</style>
+
+{% if errors %}
+<div class="error" role="alert">Облік має помилок: {{ errors|length }}. Цифри можуть бути неточні — Оля перевірить командою check.py.</div>
+{% endif %}
+
+{% if not month %}
+  <div class="card"><p>Даних ще немає. Імпортуйте виписки командою <code>python check.py</code>.</p></div>
+{% else %}
+
+<nav class="seg" aria-label="Чий звіт">
+  {% for v in VIEWS %}
+  <a href="{{ url_for('report', m=month.key, who=v) }}" {% if v == who %}aria-current="true"{% endif %}>{{ v }}</a>
+  {% endfor %}
+</nav>
+
+<nav class="months" aria-label="Місяць">
+  {% for m in months|reverse %}
+  <a href="{{ url_for('report', m=m.key, who=who) }}" {% if m.key == month.key %}aria-current="true"{% endif %}>{{ MONTHS[m.month] }}{% if m.year != month.year %} {{ m.year }}{% endif %}</a>
+  {% endfor %}
+</nav>
+
+<div class="heading">
+  <h2>{{ MONTHS[month.month] }} {{ month.year }}</h2>
+  {% if month.partial %}<span class="badge">дані до {{ through }}</span>{% endif %}
+</div>
+
+<section class="card" aria-labelledby="h-cats">
+  <h2 id="h-cats">Витрати за категоріями</h2>
+  <p class="big">{{ view.expenses|zl }}</p>
+  {% if cats %}
+  <p class="sub">Найбільше: {% for name, _ in cats[:3] %}{{ name|label|lower }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+  <ul class="rows cats">
+    {% for name, value in cats %}
+    {% set items = view.items_of(name) %}
+    <li>
+      <details>
+        <summary>
+          <div class="line"><span>{{ name|label }} <span class="count">· {{ items|length|ops }}</span></span><span>{{ value|zl }} · {{ "%.0f"|format(value / view.expenses * 100) }}%</span></div>
+          <div class="track"><div class="fill" style="width: {{ '%.1f'|format(value / cat_max * 100) }}%"></div></div>
+        </summary>
+        <ul class="items">
+          {% for it in items %}
+          <li>
+            <span class="d">{{ it.date.strftime("%d.%m") }}</span>
+            <span class="n">{{ it.narration }}
+              {%- if who == "Разом" or it.shared or it.fixed or it.cash %}<span class="tags">
+                {%- if who == "Разом" %}<i>{{ it.who }}</i>{% endif -%}
+                {%- if it.shared %}<i>спільна</i>{% endif -%}
+                {%- if it.fixed %}<i>фікс.</i>{% endif -%}
+                {%- if it.cash %}<i>готівка</i>{% endif -%}
+              </span>{% endif %}</span>
+            <span class="a">{{ it.amount|zl }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="sub">Торкніться категорії, щоб побачити операції.</p>
+  {% else %}<p class="sub">Витрат у цьому місяці немає.</p>{% endif %}
+</section>
+
+<section class="card" aria-labelledby="h-rate">
+  <h2 id="h-rate">Норма заощаджень</h2>
+  {% if view.rate is none %}
+    <p class="big">—</p>
+    <p class="sub">Дохід цього місяця ще не надійшов, тому відсоток порахувати не можна.</p>
+  {% else %}
+    <p class="big" style="color: {% if view.saved >= 0 %}var(--good){% else %}var(--bad){% endif %}">{{ view.rate|pct }}</p>
+    <p class="sub">{% if view.saved >= 0 %}З кожних 100 зл доходу відкладено {{ "%.0f"|format(view.rate) }}.{% else %}Витрати перевищили дохід.{% endif %}
+      {% if month.partial %} Місяць неповний, частини витрат ще немає.{% endif %}</p>
+  {% endif %}
+  <dl class="kv">
+    <dt>Дохід</dt><dd>{{ view.income|zl }}</dd>
+    <dt>Витрати</dt><dd>{{ view.expenses|zl }}</dd>
+    <dt class="sum">Відкладено</dt><dd class="sum">{{ view.saved|zl }}</dd>
+  </dl>
+</section>
+
+<section class="card" aria-labelledby="h-fix">
+  <h2 id="h-fix">Фіксовані і змінні</h2>
+  {% set total = view.expenses if view.expenses else 1 %}
+  <ul class="rows">
+    <li>
+      <div class="line"><span><b>Змінні</b></span><span><b style="color:var(--ink)">{{ view.variable|zl }}</b> · {{ "%.0f"|format(view.variable / total * 100) }}%</span></div>
+      <div class="track"><div class="fill" style="width: {{ '%.1f'|format(view.variable / total * 100) }}%"></div></div>
+    </li>
+    <li>
+      <div class="line"><span>Фіксовані</span><span>{{ view.fixed|zl }} · {{ "%.0f"|format(view.fixed / total * 100) }}%</span></div>
+      <div class="track"><div class="fill soft" style="width: {{ '%.1f'|format(view.fixed / total * 100) }}%"></div></div>
+    </li>
+  </ul>
+  <p class="sub">Фіксовані — оренда, проїзний, підписки, Orange, PGE, Zdrofit: за місяць їх не скоротиш. Керувати можна змінними.</p>
+</section>
+
+<section class="card" aria-labelledby="h-shared">
+  <h2 id="h-shared">Спільні витрати</h2>
+  {% if debt.debtor %}
+    <p class="debt">{{ debt.phrase() }} {{ debt.amount|zl }}</p>
+  {% else %}
+    <p class="debt">Цього місяця квиті</p>
+  {% endif %}
+  <div class="split">
+    {% for p in ("Оля", "Марко") %}
+    <div><span>{{ p }} {{ "заплатила" if p == "Оля" else "заплатив" }}</span><b>{{ month.people[p].shared_paid|zl }}</b></div>
+    {% endfor %}
+  </div>
+  <p class="sub">Разом {{ month.shared_total|zl }}, кожен мав заплатити половину — {{ (month.shared_total / 2)|zl }}. Спільне: оренда і супермаркети (Kaufland, Auchan, Biedronka, Lidl, Carrefour) та готівка з позначкою «спільна».</p>
+</section>
+
+<p class="foot" style="text-align:center;color:var(--muted);font-size:12px">
+  Таблиці, фільтри й кнопка «+» — у <a href="/fava/">детальному режимі</a>.
+</p>
+
+<a class="btn fab" href="{{ url_for('add') }}">+ Додати готівку</a>
+{% endif %}
+{% endblock %}
